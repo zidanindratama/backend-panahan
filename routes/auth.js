@@ -131,4 +131,63 @@ router.put("/change-password", verifyToken, async (req, res) => {
   }
 });
 
+// ✅ VERIFIKASI IDENTITAS UNTUK LUPA PASSWORD
+router.post("/forgot-password/verify", async (req, res) => {
+  const { nik, namaLengkap, tglLahir } = req.body;
+
+  if (!nik || !namaLengkap || !tglLahir) {
+    return res.status(400).json({ message: "Semua data wajib diisi" });
+  }
+
+  try {
+    const tanggal = new Date(tglLahir);
+
+    const user = await User.findOne({
+      nik,
+      namaLengkap,
+      tglLahir: {
+        $gte: new Date(tanggal.setHours(0, 0, 0, 0)),
+        $lt: new Date(tanggal.setHours(23, 59, 59, 999)),
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "Data tidak ditemukan" });
+    }
+
+    res.json({ userId: user._id });
+  } catch (err) {
+    console.log("❌ Error:", err);
+    res.status(500).json({ message: "Terjadi kesalahan server" });
+  }
+});
+
+// ✅ SET PASSWORD BARU SETELAH VERIFIKASI BERHASIL
+router.put("/forgot-password/reset/:id", async (req, res) => {
+  const { newPassword } = req.body;
+  const { id } = req.params;
+
+  if (!newPassword) {
+    return res.status(400).json({ message: "Password baru wajib diisi" });
+  }
+
+  try {
+    const hashed = await bcrypt.hash(newPassword, 10);
+
+    const user = await User.findByIdAndUpdate(
+      id,
+      { password: hashed },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User tidak ditemukan" });
+    }
+
+    res.json({ message: "Password berhasil diperbarui" });
+  } catch (err) {
+    res.status(500).json({ message: "Gagal memperbarui password" });
+  }
+});
+
 module.exports = router;

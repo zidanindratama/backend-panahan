@@ -1,4 +1,5 @@
 const express = require("express");
+const ExcelJS = require("exceljs");
 const router = express.Router();
 const User = require("../models/user");
 const Absen = require("../models/absen");
@@ -165,6 +166,106 @@ router.get("/absensi/:userId", verifyTokenAdmin, async (req, res) => {
   } catch (err) {
     res.status(500).json({
       message: "Gagal mengambil riwayat kehadiran",
+      error: err.message,
+    });
+  }
+});
+
+// ✅ EXPORT SEMUA USER KE EXCEL
+router.get("/export-users", verifyTokenAdmin, async (req, res) => {
+  try {
+    const users = await User.find().select("-password");
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Users");
+
+    worksheet.columns = [
+      { header: "Nama Lengkap", key: "namaLengkap", width: 25 },
+      { header: "Username", key: "username", width: 20 },
+      { header: "Role", key: "role", width: 15 },
+      { header: "NIK", key: "nik", width: 20 },
+      { header: "Tanggal Lahir", key: "tglLahir", width: 20 },
+      { header: "No HP", key: "noHp", width: 20 },
+      { header: "Asal", key: "asal", width: 25 },
+      { header: "Alamat", key: "alamat", width: 30 },
+      { header: "Is Member", key: "isMember", width: 15 },
+    ];
+
+    users.forEach((user) => {
+      worksheet.addRow({
+        ...user.toObject(),
+        tglLahir: new Date(user.tglLahir).toLocaleDateString(),
+      });
+    });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=daftar_users.xlsx"
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    res.status(500).json({ message: "Gagal export data", error: err.message });
+  }
+});
+
+// ✅ EXPORT ABSENSI KE EXCEL
+router.get("/export-absensi", verifyTokenAdmin, async (req, res) => {
+  try {
+    const { start, end } = req.query;
+    const query = {};
+
+    if (start && end) {
+      query.waktu = {
+        $gte: new Date(start),
+        $lte: new Date(end),
+      };
+    }
+
+    const absensi = await Absen.find(query).populate(
+      "user",
+      "namaLengkap username"
+    );
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Data Absensi");
+
+    // Header
+    worksheet.columns = [
+      { header: "No", key: "no", width: 6 },
+      { header: "Nama", key: "nama", width: 30 },
+      { header: "Username", key: "username", width: 25 },
+      { header: "Tanggal", key: "tanggal", width: 25 },
+      { header: "Keterangan", key: "keterangan", width: 20 },
+    ];
+
+    // Isi Data
+    absensi.forEach((item, index) => {
+      worksheet.addRow({
+        no: index + 1,
+        nama: item.user?.namaLengkap || "-",
+        username: item.user?.username || "-",
+        tanggal: item.waktu.toLocaleString("id-ID"),
+        keterangan: item.keterangan,
+      });
+    });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader("Content-Disposition", "attachment; filename=absensi.xlsx");
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    res.status(500).json({
+      message: "Gagal mengekspor data absensi",
       error: err.message,
     });
   }

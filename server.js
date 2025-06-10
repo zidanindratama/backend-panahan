@@ -8,6 +8,8 @@ const adminRoutes = require("./routes/admin");
 const absenRoutes = require("./routes/absen");
 const blogRoutes = require("./routes/blog");
 const pengurusRoutes = require("./routes/pengurus");
+const kontakRoutes = require("./routes/kontak");
+const galleryRoutes = require("./routes/gallery");
 
 const app = express();
 
@@ -38,6 +40,8 @@ app.use("/api/admin", adminRoutes);
 app.use("/api", absenRoutes);
 app.use("/api/blog", blogRoutes);
 app.use("/api/pengurus", pengurusRoutes);
+app.use("/api/kontak", kontakRoutes);
+app.use("/api/gallery", galleryRoutes);
 
 // Root endpoint
 app.get("/", (req, res) => {
