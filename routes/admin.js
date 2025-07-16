@@ -271,4 +271,26 @@ router.get("/export-absensi", verifyTokenAdmin, async (req, res) => {
   }
 });
 
+// ✅ Route untuk menghitung total admin, member, dan non-member
+router.get("/stats", verifyTokenAdmin, async (req, res) => {
+  try {
+    const [totalAdmin, totalMember, totalNonMember] = await Promise.all([
+      User.countDocuments({ role: "admin" }),
+      User.countDocuments({ isMember: true }),
+      User.countDocuments({ isMember: false }),
+    ]);
+
+    res.json({
+      totalAdmin,
+      totalMember,
+      totalNonMember,
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: "Gagal mengambil statistik",
+      error: err.message,
+    });
+  }
+});
+
 module.exports = router;
